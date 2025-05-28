@@ -19,6 +19,11 @@ def shared_dataset(data_xy):
     shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX))
     return shared_x, T.cast(shared_y, 'int32')
 
+# Load and prepare data upfront
+train_set, _, test_set = load_mnist()
+train_set_x, train_set_y = shared_dataset(train_set)
+test_set_x, test_set_y = shared_dataset(test_set)
+
 # Define CNN model
 def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
     rng = np.random.RandomState(1234)
@@ -91,11 +96,6 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
     )
     
     # Training loop
-    train_set, _, test_set = load_mnist()
-    global train_set_x, train_set_y, test_set_x, test_set_y
-    train_set_x, train_set_y = shared_dataset(train_set)
-    test_set_x, test_set_y = shared_dataset(test_set)
-    
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] // batch_size
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] // batch_size
     
