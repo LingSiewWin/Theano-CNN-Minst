@@ -7,28 +7,29 @@ import pickle
 
 # Load MNIST dataset
 def load_mnist():
-    with open('mnist.pkl', 'rb') as f:
+    with open('/Users/lingsiewwin/Documents/Github/Theano_CNN_Mist/mnist.pkl', 'rb') as f:
         train_set, valid_set, test_set = pickle.load(f, encoding='latin1')
     return train_set, valid_set, test_set
 
 # Shared variable helper
 def shared_dataset(data_xy):
     data_x, data_y = data_xy
+    assert data_x.shape[1] == 784, f"Expected 784 features, got {data_x.shape[1]}"
     shared_x = theano.shared(np.asarray(data_x, dtype=theano.config.floatX))
     shared_y = theano.shared(np.asarray(data_y, dtype=theano.config.floatX))
     return shared_x, T.cast(shared_y, 'int32')
 
-# Load and prepare data upfront
-train_set, _, test_set = load_mnist()
+# Load and prepare data
+train_set, valid_set, test_set = load_mnist()
 train_set_x, train_set_y = shared_dataset(train_set)
 test_set_x, test_set_y = shared_dataset(test_set)
 
 # Define CNN model
-def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
+def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=32):
     rng = np.random.RandomState(1234)
     
-    # Symbolic inputs with explicit shape
-    X = T.tensor4('X', dtype=theano.config.floatX)  # (batch_size, channels, height, width)
+    # Symbolic inputs
+    X = T.tensor4('X', dtype=theano.config.floatX)  # (batch_size, 1, 28, 28)
     y = T.ivector('y')  # Labels
     
     # Layer 1: Conv + ReLU + MaxPooling
@@ -37,7 +38,7 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
         name='W1'
     )
     b1 = theano.shared(np.zeros((32,), dtype=theano.config.floatX), name='b1')
-    conv1 = conv2d(X, W1, border_mode='valid')
+    conv1 = conv2d(X, W1, border_mode='valid', input_shape=(batch_size, 1, 28, 28))
     conv1_out = relu(conv1 + b1.dimshuffle('x', 0, 'x', 'x'))
     pool1 = pool_2d(conv1_out, ws=(2, 2), ignore_border=True)
     
@@ -51,12 +52,13 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
     conv2_out = relu(conv2 + b2.dimshuffle('x', 0, 'x', 'x'))
     pool2 = pool_2d(conv2_out, ws=(2, 2), ignore_border=True)
     
-    # Flatten for fully connected layer
-    pool2_flat = pool2.flatten(2)
+    # Compute flattened dimension
+    flat_dim = 64 * 4 * 4  # (28-5+1)/2=12, (12-5+1)/2=4
+    pool2_flat = pool2.reshape((batch_size, flat_dim))
     
     # Fully connected layer
     W3 = theano.shared(
-        np.asarray(rng.uniform(low=-0.1, high=0.1, size=(64 * 4 * 4, 10)), dtype=theano.config.floatX),
+        np.asarray(rng.uniform(low=-0.1, high=0.1, size=(flat_dim, 10)), dtype=theano.config.floatX),
         name='W3'
     )
     b3 = theano.shared(np.zeros((10,), dtype=theano.config.floatX), name='b3')
@@ -98,7 +100,6 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
     for epoch in range(n_epochs):
         for minibatch_index in range(n_train_batches):
             cost = train_model(minibatch_index)
-        # Evaluate on test set
         test_accuracy = np.mean([test_model(i) for i in range(n_test_batches)])
         print(f'Epoch {epoch + 1}, Test Accuracy: {test_accuracy:.4f}')
 
