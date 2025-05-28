@@ -3,12 +3,11 @@ import theano.tensor as T
 import numpy as np
 from theano.tensor.nnet import conv2d, relu
 from theano.tensor.signal.pool import pool_2d
-import gzip
 import pickle
 
 # Load MNIST dataset
 def load_mnist():
-    with gzip.open('mnist.pkl.gz', 'rb') as f:
+    with open('mnist.pkl', 'rb') as f:
         train_set, valid_set, test_set = pickle.load(f, encoding='latin1')
     return train_set, valid_set, test_set
 
