@@ -27,12 +27,9 @@ test_set_x, test_set_y = shared_dataset(test_set)
 def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
     rng = np.random.RandomState(1234)
     
-    # Symbolic inputs
-    X = T.matrix('X')  # Input images
+    # Symbolic inputs with explicit shape
+    X = T.tensor4('X', dtype=theano.config.floatX)  # (batch_size, channels, height, width)
     y = T.ivector('y')  # Labels
-    
-    # Reshape input for convolution (batch_size, channels, height, width)
-    X_reshaped = X.reshape((batch_size, 1, 28, 28))
     
     # Layer 1: Conv + ReLU + MaxPooling
     W1 = theano.shared(
@@ -40,7 +37,7 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
         name='W1'
     )
     b1 = theano.shared(np.zeros((32,), dtype=theano.config.floatX), name='b1')
-    conv1 = conv2d(X_reshaped, W1, border_mode='valid')
+    conv1 = conv2d(X, W1, border_mode='valid')
     conv1_out = relu(conv1 + b1.dimshuffle('x', 0, 'x', 'x'))
     pool1 = pool_2d(conv1_out, ws=(2, 2), ignore_border=True)
     
@@ -80,7 +77,7 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
         outputs=cost,
         updates=updates,
         givens={
-            X: train_set_x[index * batch_size:(index + 1) * batch_size],
+            X: train_set_x[index * batch_size:(index + 1) * batch_size].reshape((batch_size, 1, 28, 28)),
             y: train_set_y[index * batch_size:(index + 1) * batch_size]
         }
     )
@@ -89,7 +86,7 @@ def build_cnn(learning_rate=0.01, n_epochs=10, batch_size=128):
         inputs=[index],
         outputs=T.mean(T.eq(T.argmax(output, axis=1), y)),
         givens={
-            X: test_set_x[index * batch_size:(index + 1) * batch_size],
+            X: test_set_x[index * batch_size:(index + 1) * batch_size].reshape((batch_size, 1, 28, 28)),
             y: test_set_y[index * batch_size:(index + 1) * batch_size]
         }
     )
